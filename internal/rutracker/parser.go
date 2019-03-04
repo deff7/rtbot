@@ -1,9 +1,8 @@
-package main
+package rutracker
 
 import (
 	"fmt"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -91,10 +90,19 @@ func (p *Parser) ParseMagnetLink(r io.Reader) (string, error) {
 	}
 
 	link, ok := doc.Find("a.magnet-link").Attr("href")
-	log.Println(link)
 	if !ok {
 		return "", errors.New("magnet link not found")
 	}
 
 	return link, nil
+}
+
+func (p *Parser) ParsePagesCount(r io.Reader) (int, error) {
+	doc, err := goquery.NewDocumentFromReader(r)
+	if err != nil {
+		return -1, err
+	}
+
+	raw := doc.Find("div.bottom_info > div.nav > p:nth-child(1) > b:nth-child(2)").Text()
+	return strconv.Atoi(raw)
 }

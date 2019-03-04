@@ -1,14 +1,11 @@
-package main
+package rutracker
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
 
 	"golang.org/x/net/html/charset"
 )
@@ -16,30 +13,6 @@ import (
 type Client struct {
 	http   *http.Client
 	parser *Parser
-}
-
-type cookieJar struct {
-	mu  sync.RWMutex
-	jar map[string][]*http.Cookie
-}
-
-func newCookieJar() *cookieJar {
-	return &cookieJar{
-		jar: map[string][]*http.Cookie{},
-	}
-}
-
-func (j cookieJar) Cookies(u *url.URL) []*http.Cookie {
-	j.mu.RLock()
-	cookies := j.jar[u.Hostname()]
-	j.mu.RUnlock()
-	return cookies
-}
-
-func (j cookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
-	j.mu.Lock()
-	j.jar[u.Hostname()] = cookies
-	j.mu.Unlock()
 }
 
 func NewClient() *Client {
@@ -72,16 +45,6 @@ func (c *Client) Login(user, password string) error {
 	return nil
 }
 
-type TorrentFile struct {
-	ID         int
-	Name       string
-	Seeds      int
-	Size       int
-	Date       time.Time
-	Tags       []string
-	ForumTopic string
-}
-
 func (c *Client) List(q string) ([]TorrentFile, error) {
 	form := url.Values{
 		"f[]": {"-1"},
@@ -111,11 +74,6 @@ func newUTF8ResponseReader(resp *http.Response) (io.Reader, error) {
 	)
 }
 
-type Links struct {
-	Download string
-	Magnet   string
-}
-
 func (c *Client) GetLinks(f TorrentFile) (links Links, err error) {
 	resp, err := c.http.Get("https://rutracker.org/forum/viewtopic.php?t=" + strconv.Itoa(f.ID))
 	if err != nil {
@@ -137,25 +95,4 @@ func (c *Client) GetLinks(f TorrentFile) (links Links, err error) {
 	links.Download = "https://rutracker.org/forum/dl.php?t=" + strconv.Itoa(f.ID)
 
 	return
-}
-
-func checkError(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func main() {
-	c := NewClient()
-
-	err := c.Login("", "")
-	checkError(err)
-
-	files, err := c.List("napoleon newborn")
-	checkError(err)
-	log.Printf("%#v", files[0])
-
-	links, err := c.GetLinks(files[0])
-	checkError(err)
-	log.Print(links)
 }

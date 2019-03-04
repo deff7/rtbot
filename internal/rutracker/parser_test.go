@@ -1,4 +1,4 @@
-package main
+package rutracker
 
 import (
 	"os"
@@ -9,8 +9,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const htmlPath = "../../test/html/"
+
 func TestParseList(t *testing.T) {
-	f, err := os.Open("./test/html/list.html")
+	f, err := os.Open(htmlPath + "list.html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +56,7 @@ func TestParseList(t *testing.T) {
 }
 
 func TestParseMagnetLink(t *testing.T) {
-	f, err := os.Open("./test/html/details.html")
+	f, err := os.Open(htmlPath + "details.html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,5 +72,24 @@ func TestParseMagnetLink(t *testing.T) {
 
 	if want != got {
 		t.Errorf("expect %q to equal %q", got, want)
+	}
+}
+
+func TestParsePagesCount(t *testing.T) {
+	f, err := os.Open(htmlPath + "pages.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := &Parser{}
+
+	got, err := p.ParsePagesCount(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := 4
+	if got != want {
+		t.Errorf("expect %d pages but got %d", want, got)
 	}
 }
