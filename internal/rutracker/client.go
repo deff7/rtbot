@@ -3,9 +3,7 @@ package rutracker
 import (
 	"io"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 
@@ -61,11 +59,6 @@ func (c *Client) List(q string) ([]TorrentFile, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	body, _ := httputil.DumpResponse(resp, true)
-	f, _ := os.Create("dump.html")
-	f.Write(body)
-	f.Close()
 
 	r, err := newUTF8ResponseReader(resp)
 	if err != nil {

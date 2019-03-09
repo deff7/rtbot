@@ -2,11 +2,15 @@ package bot
 
 import (
 	"log"
+	"strconv"
+	"strings"
 
 	"github.com/deff7/rutracker/internal/rutracker"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/pkg/errors"
 )
+
+const downloadCommandPrefix = "/download"
 
 type Bot struct {
 	bot            *tgbotapi.BotAPI
@@ -112,6 +116,25 @@ func (b *Bot) handleWaitCommandState(u tgbotapi.Update, userID int) {
 		return
 	}
 
+	if u.Message != nil {
+		if strings.HasPrefix(u.Message.Text, downloadCommandPrefix) {
+			rawID := u.Message.Text[len(downloadCommandPrefix):]
+			id, err := strconv.Atoi(rawID)
+			if err != nil {
+				log.Print(err)
+				return
+			}
+			links, err := b.rtclient.GetLinks(rutracker.TorrentFile{
+				ID: id,
+			})
+			if err != nil {
+				log.Print(err)
+				return
+			}
+			msg := tgbotapi.NewMessage(u.Message.Chat.ID, links.Magnet)
+			b.bot.Send(msg)
+		}
+	}
 }
 
 func (b *Bot) handleUpdate(u tgbotapi.Update) {
