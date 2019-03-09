@@ -9,6 +9,7 @@ import (
 type RTCollection interface {
 	ListNext() []rutracker.TorrentFile
 	HasNext() bool
+	Len() int
 }
 
 type Session struct {

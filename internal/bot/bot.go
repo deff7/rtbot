@@ -2,7 +2,6 @@ package bot
 
 import (
 	"log"
-	"strconv"
 
 	"github.com/deff7/rutracker/internal/rutracker"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -22,7 +21,7 @@ func NewBot(token string, rtclient *rutracker.Client) (*Bot, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "initializing bot api")
 	}
-	//bot.Debug = true
+	// bot.Debug = true
 
 	_, err = bot.RemoveWebhook()
 	if err != nil {
@@ -46,11 +45,7 @@ func NewBot(token string, rtclient *rutracker.Client) (*Bot, error) {
 
 func (b *Bot) Run() {
 	for update := range b.updatesCh {
-		if update.Message == nil {
-			continue
-		}
-
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+		//log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
 		b.handleUpdate(update)
 	}
@@ -72,37 +67,51 @@ func (b *Bot) handleWaitQueryState(u tgbotapi.Update, userID int) {
 		b.bot.Send(msg)
 	}()
 
-	b.stateManager.Set(userID, StateWaitCommand)
 	res, err := b.rtclient.NewCollection(u.Message.Text)
 	if err != nil {
 		msg.Text = err.Error()
 		return
 	}
+	if res.Len() == 0 {
+		return
+	}
+	b.stateManager.Set(userID, StateWaitCommand)
+
 	b.sessionManager.Set(userID, Session{
 		Results: res,
 	})
-
-	sep := ""
-	msg.Text = ""
-	for _, f := range res.ListNext() {
-		msg.Text += sep + f.Name + "\n/download" + strconv.Itoa(f.ID)
-		sep = "\n\n"
-	}
-
+	msg.Text = renderFiles(res)
 	if !res.HasNext() {
 		return
 	}
-	rows := []tgbotapi.InlineKeyboardButton{
-		tgbotapi.NewInlineKeyboardButtonData("Следующая страница", "/next"),
+	msg.ReplyMarkup = makeNextPageMarkup()
+}
+
+func (b *Bot) handleNextPageCallback(u tgbotapi.Update, userID int) {
+	msg := u.CallbackQuery.Message
+
+	s := b.sessionManager.Get(userID)
+	if !s.Results.HasNext() {
+		return
 	}
-	markup := tgbotapi.NewInlineKeyboardMarkup(rows)
-	msg.ReplyMarkup = markup
+	text := renderFiles(s.Results)
+
+	editMsg := tgbotapi.NewEditMessageText(msg.Chat.ID, msg.MessageID, text)
+	defer func() {
+		b.bot.Send(editMsg)
+	}()
+	if !s.Results.HasNext() {
+		return
+	}
+	editMsg.ReplyMarkup = makeNextPageMarkup()
 }
 
 func (b *Bot) handleWaitCommandState(u tgbotapi.Update, userID int) {
-	msg := tgbotapi.NewMessage(u.Message.Chat.ID, "Вообще я жду /next или /download1234")
-	b.stateManager.Set(userID, StateWaitQuery)
-	b.bot.Send(msg)
+	if u.CallbackQuery != nil {
+		b.handleNextPageCallback(u, userID)
+		return
+	}
+
 }
 
 func (b *Bot) handleUpdate(u tgbotapi.Update) {
@@ -119,6 +128,7 @@ func (b *Bot) handleUpdate(u tgbotapi.Update) {
 	case StateWaitQuery:
 		b.handleWaitQueryState(u, userID)
 	case StateWaitCommand:
+		b.handleWaitCommandState(u, userID)
 	default:
 	}
 }

@@ -1,5 +1,7 @@
 package rutracker
 
+import "github.com/pkg/errors"
+
 type Collection struct {
 	query    string
 	data     []TorrentFile
@@ -10,7 +12,7 @@ type Collection struct {
 func (c *Client) NewCollection(q string) (*Collection, error) {
 	data, err := c.List(q)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching search results")
 	}
 	return &Collection{
 		query: q,
@@ -36,4 +38,8 @@ func (c *Collection) ListNext() []TorrentFile {
 
 func (c *Collection) HasNext() bool {
 	return c.offset < len(c.data)
+}
+
+func (c *Collection) Len() int {
+	return len(c.data)
 }
