@@ -35,5 +35,5 @@ func (c *Collection) ListNext() []TorrentFile {
 }
 
 func (c *Collection) HasNext() bool {
-	return len(c.data)-c.offset > c.pageSize
+	return c.offset < len(c.data)
 }
